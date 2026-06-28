@@ -10,9 +10,9 @@ const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 
 const GITHUB_OWNER = "richlifetechnologies-lang";
-const GITHUB_REPO  = "stream-studio";
+const GITHUB_REPO  = "stream-studio-fal";
 
-// ─── Asset pattern for the current platform + architecture ─────────────────
+// âââ Asset pattern for the current platform + architecture âââââââââââââââââ
 function getAssetPattern(): RegExp {
   if (process.platform === "win32") return /StreamStudio-Setup-.*\.exe$/i;
   if (process.platform === "darwin") {
@@ -22,7 +22,7 @@ function getAssetPattern(): RegExp {
   return /StreamStudio-.*\.AppImage$/i;
 }
 
-// ─── Generic HTTPS GET with redirect following ────────────────────────────────
+// âââ Generic HTTPS GET with redirect following ââââââââââââââââââââââââââââââââ
 function httpsGet(url: string, headers: Record<string, string> = {}): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith("https") ? https : http;
@@ -44,7 +44,7 @@ function httpsGet(url: string, headers: Record<string, string> = {}): Promise<Bu
   });
 }
 
-// ─── Streaming download with progress ────────────────────────────────────────
+// âââ Streaming download with progress ââââââââââââââââââââââââââââââââââââââââ
 function downloadFile(
   url: string,
   destPath: string,
@@ -86,7 +86,7 @@ function downloadFile(
   });
 }
 
-// ─── Version comparison (semver-lite: major.minor.patch) ─────────────────────
+// âââ Version comparison (semver-lite: major.minor.patch) âââââââââââââââââââââ
 function isNewer(remote: string, local: string): boolean {
   const parse = (v: string) => v.replace(/^v/, "").split(".").map(Number);
   const [rMaj, rMin, rPat] = parse(remote);
@@ -96,7 +96,7 @@ function isNewer(remote: string, local: string): boolean {
   return rPat > lPat;
 }
 
-// ─── In-app updater state ─────────────────────────────────────────────────────
+// âââ In-app updater state âââââââââââââââââââââââââââââââââââââââââââââââââââââ
 let pendingInstallerPath: string | null = null;
 let latestDownloadUrl:    string | null = null;
 let latestVersion:        string | null = null;
@@ -126,7 +126,7 @@ async function checkForUpdate(win: BrowserWindow) {
 
     win.webContents.send("update-available", { version: remoteVer });
   } catch {
-    // Best-effort — silently ignore
+    // Best-effort â silently ignore
   }
 }
 
@@ -156,12 +156,12 @@ async function startInAppDownload(win: BrowserWindow, overrideUrl?: string) {
   }
 }
 
-// ─── IPC: trigger update download ────────────────────────────────────────────
+// âââ IPC: trigger update download ââââââââââââââââââââââââââââââââââââââââââââ
 ipcMain.on("download-update", () => {
   if (mainWindow) startInAppDownload(mainWindow);
 });
 
-// ─── IPC: quit and run the downloaded installer ───────────────────────────────
+// âââ IPC: quit and run the downloaded installer âââââââââââââââââââââââââââââââ
 ipcMain.on("quit-and-install", () => {
   if (!pendingInstallerPath) return;
   shell.openPath(pendingInstallerPath).then(() => {
@@ -171,7 +171,7 @@ ipcMain.on("quit-and-install", () => {
   });
 });
 
-// ─── IPC: open-external — intercept old v1.4.0 update flow ───────────────────
+// âââ IPC: open-external â intercept old v1.4.0 update flow âââââââââââââââââââ
 // v1.4.0 compiled the following into its renderer: ipcRenderer.send("open-external", url)
 // That old call is now caught here: if the URL looks like one of our installers, we
 // download it in-app; otherwise we fall back to shell.openExternal as before.
@@ -192,7 +192,7 @@ ipcMain.on("open-external", (_event, url: string) => {
   }
 });
 
-// ─── Window ───────────────────────────────────────────────────────────────────
+// âââ Window âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -251,7 +251,7 @@ function createWindow() {
   });
 }
 
-// ─── macOS first-launch Gatekeeper notice ────────────────────────────────────
+// âââ macOS first-launch Gatekeeper notice ââââââââââââââââââââââââââââââââââââ
 function showMacFirstLaunchNotice() {
   if (process.platform !== "darwin" || isDev) return;
   const flagPath = path.join(app.getPath("userData"), ".mac-first-launch-shown");
@@ -268,7 +268,7 @@ function showMacFirstLaunchNotice() {
       detail:
         "If macOS blocked this app when you first opened it, here's how to fix it:\n\n" +
         "1. Close Stream Studio\n" +
-        "2. Right-click the app icon (or DMG) → Open\n" +
+        "2. Right-click the app icon (or DMG) â Open\n" +
         "3. Click Open in the security dialog\n\n" +
         "You only need to do this once. After that it launches normally.\n\n" +
         "This happens because Stream Studio isn't signed with a paid Apple Developer certificate.",
