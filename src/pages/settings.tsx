@@ -1,7 +1,7 @@
 import { useState } from "react";
   import { useLocation } from "wouter";
   import { AppLayout } from "../components/layout";
-  import { Key, Trash2, Eye, EyeOff, Save, LogOut, CheckCircle2, ExternalLink } from "lucide-react";
+  import { Key, Trash2, Eye, EyeOff, Save, LogOut, CheckCircle2 } from "lucide-react";
   import { getApiKey, setApiKey, clearCredentials } from "../lib/credentials";
   import { useToast } from "../hooks/use-toast";
 
@@ -24,7 +24,7 @@ import { useState } from "react";
     const handleUpdate = () => {
       const ak = newApiKey.trim();
       if (!ak) {
-        toast({ title: "Nothing to update", description: "Enter your fal.ai API Key.", variant: "destructive" });
+        toast({ title: "Nothing to update", description: "Enter your API Key.", variant: "destructive" });
         return;
       }
       if (ak.length < 8) { toast({ title: "API Key too short", variant: "destructive" }); return; }
@@ -32,11 +32,11 @@ import { useState } from "react";
       setNewApiKey("");
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
-      toast({ title: "API Key saved", description: "Your fal.ai key has been saved to this device." });
+      toast({ title: "API Key saved", description: "Your API key has been saved to this device." });
     };
 
     const handleClear = () => {
-      if (!confirm("This will remove your fal.ai API Key from this device. Continue?")) return;
+      if (!confirm("This will remove your API Key from this device. Continue?")) return;
       clearCredentials();
       setLocation("/");
     };
@@ -62,21 +62,10 @@ import { useState } from "react";
               Account Settings
             </h1>
             <p style={{ color: "hsl(222 25% 50%)", fontSize: 14, fontFamily: "'Rajdhani', sans-serif" }}>
-              Manage your fal.ai API Key stored on this device
+              Manage your API Key stored on this device
             </p>
           </div>
 
-          {/* Get API key link */}
-          <div style={{ background: "hsl(187 100% 52% / 0.06)", border: "1px solid hsl(187 100% 52% / 0.2)", borderRadius: 12, padding: "12px 16px", marginBottom: 14, display: "flex", alignItems: "center", gap: 12 }}>
-            <Key style={{ width: 15, height: 15, color: C, flexShrink: 0 }} />
-            <p style={{ fontSize: 13, color: "hsl(190 80% 80%)", fontFamily: "'Rajdhani', sans-serif", flex: 1 }}>
-              Don't have a fal.ai key yet?
-            </p>
-            <a href="https://fal.ai/dashboard/keys" target="_blank" rel="noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "hsl(187 100% 52% / 0.15)", border: "1px solid hsl(187 100% 52% / 0.35)", color: C, fontWeight: 700, fontSize: 12, fontFamily: "'Orbitron', monospace", textDecoration: "none", letterSpacing: "0.04em" }}>
-              Get Key <ExternalLink style={{ width: 11, height: 11 }} />
-            </a>
-          </div>
 
           {/* Current key */}
           <div style={{ background: "hsl(222 44% 6%)", border: "1px solid hsl(222 40% 11%)", borderRadius: 14, padding: 20, marginBottom: 14 }}>
@@ -86,7 +75,7 @@ import { useState } from "react";
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "hsl(222 40% 8%)", borderRadius: 8, border: "1px solid hsl(222 40% 12%)" }}>
               <Key style={{ width: 14, height: 14, color: C, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 10, color: "hsl(222 25% 45%)", fontFamily: "'Orbitron', monospace", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>fal.ai API Key</p>
+                <p style={{ fontSize: 10, color: "hsl(222 25% 45%)", fontFamily: "'Orbitron', monospace", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 2 }}>API Key</p>
                 <p style={{ fontSize: 13, color: "hsl(190 80% 90%)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{maskedApi}</p>
               </div>
             </div>
@@ -100,14 +89,14 @@ import { useState } from "react";
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={labelStyle}>New fal.ai API Key</label>
+                <label style={labelStyle}>New API Key</label>
                 <div style={{ position: "relative" }}>
                   <Key style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, color: "hsl(222 25% 40%)" }} />
                   <input
                     type={showApiKey ? "text" : "password"}
                     value={newApiKey}
                     onChange={e => setNewApiKey(e.target.value)}
-                    placeholder="Enter your fal.ai API Key"
+                    placeholder="Enter your API Key"
                     style={inputStyle}
                     onKeyDown={e => { if (e.key === "Enter") handleUpdate(); }}
                     onFocus={e => { e.target.style.borderColor = "hsl(187 100% 52% / 0.5)"; e.target.style.boxShadow = "0 0 0 2px hsl(187 100% 52% / 0.1)"; }}
@@ -146,7 +135,7 @@ import { useState } from "react";
               <p style={{ fontWeight: 700, fontSize: 14, color: "hsl(0 85% 75%)", fontFamily: "'Rajdhani', sans-serif" }}>Danger Zone</p>
             </div>
             <p style={{ fontSize: 13, color: "hsl(0 50% 60%)", marginBottom: 14, fontFamily: "'Rajdhani', sans-serif", lineHeight: 1.5 }}>
-              Remove your fal.ai API Key from this device. You will need to re-enter it to start streaming.
+              Remove your API Key from this device. You will need to re-enter it to start streaming.
             </p>
             <button
               onClick={handleClear}

@@ -90,7 +90,7 @@ export default function UsagePage() {
             Usage & Billing
           </h1>
           <p style={{ color: "hsl(222 25% 50%)", fontSize: 14, fontFamily: "'Rajdhani',sans-serif" }}>
-            Track your fal.ai streaming costs in real time
+            Track your streaming costs in real time
           </p>
         </div>
 
@@ -133,7 +133,7 @@ export default function UsagePage() {
           <StatCard icon={Activity}     label="Total Sessions"  value={history.length.toString()} sub="all time" />
           <StatCard icon={Clock}        label="Total Time"      value={formatTime(totalSecs)}      sub="streamed" />
           <StatCard icon={Zap}          label="Total Credits"   value={totalCredits.toLocaleString()} sub="@ $0.02/s" color={C} glow={totalCredits > 0} />
-          <StatCard icon={DollarSign}   label="Total Spent"     value={`$${totalUsd.toFixed(2)}`}  sub="@ fal.ai pricing" color="hsl(143 72% 50%)" glow={totalUsd > 0} />
+          <StatCard icon={DollarSign}   label="Total Spent"     value={`$${totalUsd.toFixed(2)}`}  sub="@ current pricing" color="hsl(143 72% 50%)" glow={totalUsd > 0} />
         </div>
 
         {/* Session history */}

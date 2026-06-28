@@ -301,18 +301,18 @@ import { useState, useRef, useEffect, useCallback } from "react";
             signal: AbortSignal.timeout(8000),
           });
           if (_pf.status === 401) {
-            throw new Error("Invalid fal.ai API key. Open Settings and paste your key from fal.ai/dashboard/keys.");
+            throw new Error("Invalid API key. Open Settings and update your key.");
           }
           if (_pf.status === 403 || _pf.status === 402) {
             const _pfBody = await _pf.json().catch(() => ({}) as Record<string,unknown>) as Record<string,unknown>;
             const _pfDetail = String(_pfBody.detail ?? _pfBody.error ?? _pfBody.message ?? "");
             if (_pfDetail.toLowerCase().includes("balance") || _pfDetail.toLowerCase().includes("exhausted") || _pfDetail.toLowerCase().includes("locked") || _pfDetail.toLowerCase().includes("credit") || _pfDetail.toLowerCase().includes("payment")) {
-              throw new Error("No fal.ai credits — your account balance is exhausted. Top up at fal.ai/dashboard/billing, then try again.");
+              throw new Error("Zero balance — your account has no credits. Please top up your balance to continue streaming.");
             }
             // 403 without balance info = wrong HTTP method (WebSocket endpoint) — proceed
           }
         } catch (_pfErr) {
-          if (_pfErr instanceof Error && (_pfErr.message.includes("fal.ai") || _pfErr.message.includes("credits") || _pfErr.message.includes("API key"))) throw _pfErr;
+          if (_pfErr instanceof Error && (_pfErr.message.includes("Zero balance") || _pfErr.message.includes("Invalid API key") || _pfErr.message.includes("credits") || _pfErr.message.includes("balance"))) throw _pfErr;
           // Network/CORS error — proceed; server will surface auth issues
         }
 
@@ -448,7 +448,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
             }
           },
           onError: (err: unknown) => {
-            const msg = err instanceof Error ? err.message : "Connection error. Check your fal.ai API key.";
+            const msg = err instanceof Error ? err.message : "Connection error. Check your API key in Settings.";
             teardownStream();
             toast({ title: "Stream Failed", description: msg, variant: "destructive" });
           },
@@ -462,7 +462,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
         conn.send(payload);
 
       } catch (err) {
-        const _errMsg = err instanceof Error ? err.message : "Check your fal.ai API Key in Settings.";
+        const _errMsg = err instanceof Error ? err.message : "Check your API Key in Settings.";
         teardownStream();
         setStreamError(_errMsg);
         toast({ title: "Stream Failed", description: _errMsg, variant: "destructive" });
