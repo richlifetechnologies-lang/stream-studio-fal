@@ -1,7 +1,7 @@
 {
   "name": "stream-studio-fal",
-  "version": "1.0.1",
-  "description": "Stream Studio powered by fal.ai ÃÂ Decart Lucy 2.1 Ã¢ÂÂ no watermark",
+  "version": "1.0.2",
+  "description": "Stream Studio powered by fal.ai ÃÂÃÂ Decart Lucy 2.1 ÃÂ¢ÃÂÃÂ no watermark",
   "main": "dist-electron/main.js",
   "author": "Rich Life Technologies",
   "private": true,
@@ -52,7 +52,7 @@
   "build": {
     "appId": "com.richlife.streamstudiofal",
     "productName": "Stream Studio FAL",
-    "copyright": "Copyright ÃÂ© 2025 Rich Life Technologies",
+    "copyright": "Copyright ÃÂÃÂ© 2025 Rich Life Technologies",
     "directories": {
       "output": "release",
       "buildResources": "public"
