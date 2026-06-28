@@ -551,6 +551,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
       return () => window.removeEventListener("message", h);
     }, [teardownStream, cameraReady, handleStartStream]);
 
+
+    // Forward stream errors to the popout window so it shows them too
+    useEffect(() => {
+      if (!streamError) return;
+      if (popoutRef.current && !popoutRef.current.closed) {
+        try { popoutRef.current.postMessage({ type: "stream-studio-error", message: streamError }, "*"); } catch { /* ignore */ }
+      }
+    }, [streamError]);
     // âââ Keyboard shortcuts ââââââââââââââââââââââââââââââââââââââââââââââââââââ
     useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
@@ -637,23 +645,68 @@ return (
             }}
             style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)", display: "block" }}
           />
-          {/* Close button Ã¢ÂÂ stops the stream */}
-          <button
-            onClick={() => { teardownStream(); setIsFullscreen(false); }}
-            title="Stop stream & exit fullscreen (Esc)"
-            style={{
-              position: "absolute", top: 16, left: 16, zIndex: 10,
-              width: 36, height: 36, borderRadius: "50%",
-              background: "rgba(220,38,38,0.85)", border: "1px solid rgba(255,100,100,0.4)",
-              color: "#fff", cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
-            }}
-          >
-            <X style={{ width: 16, height: 16 }} />
-          </button>
-          {/* Elapsed timer */}
-          {isStreaming && (
+
+          {/* Error overlay — shown when stream fails while in fullscreen */}
+          {streamError && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 20,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: 20, background: "rgba(0,0,0,0.86)", padding: "32px", textAlign: "center",
+            }}>
+              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "hsl(0 85% 55% / 0.14)", border: "2px solid hsl(0 85% 55% / 0.45)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {streamError.toLowerCase().includes("balance") || streamError.toLowerCase().includes("zero")
+                  ? <CreditCard style={{ width: 26, height: 26, color: "hsl(0 85% 65%)" }} />
+                  : <AlertTriangle style={{ width: 26, height: 26, color: "hsl(0 85% 65%)" }} />}
+              </div>
+              <div style={{ maxWidth: 420 }}>
+                <p style={{ fontFamily: "'Orbitron',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.06em", color: "hsl(0 85% 72%)", marginBottom: 10 }}>
+                  {streamError.toLowerCase().includes("balance") || streamError.toLowerCase().includes("zero")
+                    ? "Zero Balance"
+                    : streamError.toLowerCase().includes("invalid api key") || streamError.toLowerCase().includes("api key")
+                    ? "Invalid API Key"
+                    : "Stream Error"}
+                </p>
+                <p style={{ fontSize: 13, color: "hsl(222 25% 75%)", fontFamily: "'Rajdhani',sans-serif", lineHeight: 1.6, marginBottom: 20 }}>
+                  {streamError}
+                </p>
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  {(streamError.toLowerCase().includes("invalid api key") || streamError.toLowerCase().includes("api key")) && (
+                    <button
+                      onClick={() => { setStreamError(null); setIsFullscreen(false); setLocation("/settings"); }}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, background: C, border: "none", cursor: "pointer", color: "hsl(222 47% 4%)", fontWeight: 700, fontSize: 12, fontFamily: "'Orbitron',monospace", letterSpacing: "0.04em" }}>
+                      <Settings style={{ width: 13, height: 13 }} /> Open Settings
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setStreamError(null); setIsFullscreen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, background: "hsl(222 40% 14%)", border: "1px solid hsl(222 40% 22%)", cursor: "pointer", color: "hsl(190 80% 85%)", fontWeight: 700, fontSize: 12, fontFamily: "'Orbitron',monospace", letterSpacing: "0.04em" }}>
+                    <X style={{ width: 13, height: 13 }} /> Exit Fullscreen
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Close button — only shown when no error */}
+          {!streamError && (
+            <button
+              onClick={() => { teardownStream(); setStreamError(null); setIsFullscreen(false); }}
+              title="Stop stream & exit fullscreen (Esc)"
+              style={{
+                position: "absolute", top: 16, left: 16, zIndex: 10,
+                width: 36, height: 36, borderRadius: "50%",
+                background: "rgba(220,38,38,0.85)", border: "1px solid rgba(255,100,100,0.4)",
+                color: "#fff", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+              }}
+            >
+              <X style={{ width: 16, height: 16 }} />
+            </button>
+          )}
+
+          {/* Elapsed timer — only shown when streaming and no error */}
+          {isStreaming && !streamError && (
             <div style={{
               position: "absolute", top: 16, right: 16,
               padding: "4px 12px", borderRadius: 20,
