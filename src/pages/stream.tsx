@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
   import {
     Zap, Square, Play, Camera, Monitor, Maximize2,
     RefreshCw, ChevronDown, Image, Loader2, X,
-    Settings, Mic, Wifi, WifiOff,
+    Settings, Mic, Wifi, WifiOff, AlertTriangle, CreditCard, RotateCcw,
   } from "lucide-react";
 
   import { fal } from "@fal-ai/client";
@@ -269,7 +269,8 @@ import { useState, useRef, useEffect, useCallback } from "react";
       setIsStreaming(false); setConnectionStatus("idle");
       setConnectionStep(null); setElapsedSecs(0);
       setAudioActive(false); setSyncDelay(1.2); setVuLevel(0);
-      setStreamError(null);
+      // Note: does NOT clear streamError — callers that need to show an error
+      // set it after this call; callers that want a clean stop clear it themselves.
     }, []);
 
     // âââ Start stream âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -371,7 +372,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
                 pc.onconnectionstatechange = () => {
                   if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
                     teardownStream();
-                    toast({ title: "Stream disconnected", description: "Connection lost. Try again.", variant: "destructive" });
+                    setStreamError("Connection lost. Your stream disconnected — please try again.");
                   }
                 };
 
@@ -440,7 +441,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
               case "error":
                 teardownStream();
-                toast({ title: "Stream Error", description: String(result.error ?? "Server error occurred."), variant: "destructive" });
+                setStreamError(String(result.error ?? "A server error occurred. Please try again."));
                 break;
 
               default:
@@ -450,7 +451,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
           onError: (err: unknown) => {
             const msg = err instanceof Error ? err.message : "Connection error. Check your API key in Settings.";
             teardownStream();
-            toast({ title: "Stream Failed", description: msg, variant: "destructive" });
+            setStreamError(msg);
           },
         });
 
@@ -465,13 +466,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
         const _errMsg = err instanceof Error ? err.message : "Check your API Key in Settings.";
         teardownStream();
         setStreamError(_errMsg);
-        toast({ title: "Stream Failed", description: _errMsg, variant: "destructive" });
       } finally {
         isStartingRef.current = false; setIsStarting(false);
       }
     }, [isStreaming, credsMissing, cameraReady, selectedStyle, customPrompt, refImageB64, teardownStream, toast, setLocation]);
 
-    const handleStopStream = useCallback(() => teardownStream(), [teardownStream]);
+    const handleStopStream = useCallback(() => { teardownStream(); setStreamError(null); }, [teardownStream]);
 
     // âââ Reference image âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     const handleRefImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -579,13 +579,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
   
 return (
     <AppLayout>
-      {streamError && (
-        <div style={{ background: "#c0392b", color: "#fff", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12, fontSize: 13, fontFamily: "monospace" }}>
-          <span>⚠</span>
-          <span style={{ flex: 1 }}>{streamError}</span>
-          <button onClick={() => setStreamError(null)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>✕</button>
-        </div>
-      )}
       {/* Ã¢ÂÂÃ¢ÂÂ Missing credentials banner Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
       {credsMissing && (
         <div style={{ margin: "16px 32px 0", padding: "12px 18px", borderRadius: 10, background: "hsl(40 100% 52% / 0.1)", border: "1px solid hsl(40 100% 52% / 0.35)", display: "flex", alignItems: "center", gap: 12 }}>
@@ -705,7 +698,45 @@ return (
             }}>
               <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: "scaleX(-1)" }} />
 
-              {connectionStatus === "idle" && (
+              {/* Error overlay — shown on the AI screen when something goes wrong */}
+              {streamError && (
+                <div style={{ position: "absolute", inset: 0, zIndex: 5, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 18, background: "radial-gradient(ellipse at center, hsl(0 40% 8%) 0%, hsl(222 47% 4%) 100%)", padding: "24px 28px", textAlign: "center" }}>
+                  <div style={{ width: 68, height: 68, borderRadius: "50%", background: "hsl(0 85% 55% / 0.12)", border: "2px solid hsl(0 85% 55% / 0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {streamError.toLowerCase().includes("balance") || streamError.toLowerCase().includes("zero")
+                      ? <CreditCard style={{ width: 28, height: 28, color: "hsl(0 85% 65%)" }} />
+                      : <AlertTriangle style={{ width: 28, height: 28, color: "hsl(0 85% 65%)" }} />}
+                  </div>
+                  <div style={{ maxWidth: 380 }}>
+                    <p style={{ fontFamily: "'Orbitron',monospace", fontWeight: 700, fontSize: 13, letterSpacing: "0.06em", color: "hsl(0 85% 75%)", marginBottom: 10 }}>
+                      {streamError.toLowerCase().includes("balance") || streamError.toLowerCase().includes("zero")
+                        ? "Zero Balance"
+                        : streamError.toLowerCase().includes("invalid api key") || streamError.toLowerCase().includes("api key")
+                        ? "Invalid API Key"
+                        : "Stream Error"}
+                    </p>
+                    <p style={{ fontSize: 13, color: "hsl(222 25% 70%)", fontFamily: "'Rajdhani',sans-serif", lineHeight: 1.6, marginBottom: 18 }}>
+                      {streamError}
+                    </p>
+                    <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                      {(streamError.toLowerCase().includes("invalid api key") || streamError.toLowerCase().includes("api key")) && (
+                        <button
+                          onClick={() => { setStreamError(null); setLocation("/settings"); }}
+                          style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, background: C, border: "none", cursor: "pointer", color: "hsl(222 47% 4%)", fontWeight: 700, fontSize: 12, fontFamily: "'Orbitron',monospace", letterSpacing: "0.04em" }}>
+                          <Settings style={{ width: 13, height: 13 }} /> Open Settings
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setStreamError(null)}
+                        style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 8, background: "hsl(222 40% 12%)", border: "1px solid hsl(222 40% 20%)", cursor: "pointer", color: "hsl(190 80% 85%)", fontWeight: 700, fontSize: 12, fontFamily: "'Orbitron',monospace", letterSpacing: "0.04em" }}>
+                        <RotateCcw style={{ width: 13, height: 13 }} /> Try Again
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Idle state — only when no error and not streaming */}
+              {connectionStatus === "idle" && !streamError && (
                 <div style={{ position: "absolute", inset: 0, zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, background: "radial-gradient(ellipse at center, hsl(222 44% 8%) 0%, hsl(222 47% 4%) 100%)" }}>
                   <div style={{ width: 72, height: 72, borderRadius: "50%", background: "hsl(187 100% 52% / 0.08)", border: "2px solid hsl(187 100% 52% / 0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Zap style={{ width: 32, height: 32, color: C }} />
