@@ -183,6 +183,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
     const [refImageB64, setRefImageB64]         = useState<string|null>(null);
     const [refImagePreview, setRefImagePreview] = useState<string|null>(null);
+    const [streamError, setStreamError]   = useState<string|null>(null);
 
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isPopoutOpen, setIsPopoutOpen] = useState(false);
@@ -203,7 +204,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
     const credsMissing = !hasCredentials();
 
-    // ─── Camera ────────────────────────────────────────────────────────────────
+    // âââ Camera ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     const enumerateCameras = useCallback(async () => {
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
@@ -239,7 +240,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       if (cameraReady) await startCamera(id);
     }, [cameraReady, startCamera]);
 
-    // ─── Teardown ───────────────────────────────────────────────────────────────
+    // âââ Teardown âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     const teardownStream = useCallback(async () => {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       isStartingRef.current = false;
@@ -268,9 +269,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
       setIsStreaming(false); setConnectionStatus("idle");
       setConnectionStep(null); setElapsedSecs(0);
       setAudioActive(false); setSyncDelay(1.2); setVuLevel(0);
+      setStreamError(null);
     }, []);
 
-    // ─── Start stream ───────────────────────────────────────────────────────────
+    // âââ Start stream âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     const handleStartStream = useCallback(async () => {
       if (isStartingRef.current || isStreaming) return;
       if (credsMissing) { setLocation("/settings"); return; }
@@ -280,6 +282,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
       const falApiKey = getApiKey()!;
       isStartingRef.current = true; setIsStarting(true);
+      setStreamError(null);
       setConnectionStep("auth"); setConnectionStatus("connecting");
 
       try {
@@ -288,6 +291,27 @@ import { useState, useRef, useEffect, useCallback } from "react";
         const prompt = customPrompt.trim() || style.prompt;
 
         fal.config({ credentials: falApiKey });
+
+        // Pre-flight: catch balance/key errors before WebRTC handshake
+        try {
+          const _pf = await fetch("https://fal.run/decart/lucy2-vton/realtime", {
+            method: "POST",
+            headers: { "Authorization": `Key ${falApiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: "__preflight__" }),
+            signal: AbortSignal.timeout(8000),
+          });
+          if (_pf.status === 401 || _pf.status === 403) {
+            const _pfBody = await _pf.json().catch(() => ({}) as Record<string,unknown>) as Record<string,unknown>;
+            const _pfDetail = String(_pfBody.detail ?? _pfBody.error ?? "");
+            if (_pfDetail.toLowerCase().includes("balance") || _pfDetail.toLowerCase().includes("exhausted") || _pfDetail.toLowerCase().includes("locked")) {
+              throw new Error("Your fal.ai account has no credits — top up at fal.ai/dashboard/billing, then try again.");
+            }
+            throw new Error("Invalid fal.ai API key. Open Settings and paste your key from fal.ai/dashboard/keys.");
+          }
+        } catch (_pfErr) {
+          if (_pfErr instanceof Error && (_pfErr.message.includes("fal.ai") || _pfErr.message.includes("credits") || _pfErr.message.includes("API key"))) throw _pfErr;
+          // Network/CORS error — proceed; server will surface auth issues
+        }
 
         const engine = new AutoSyncEngine();
         engine.onUpdate = (delay, vu) => { setSyncDelay(delay); setVuLevel(vu); };
@@ -435,8 +459,10 @@ import { useState, useRef, useEffect, useCallback } from "react";
         conn.send(payload);
 
       } catch (err) {
+        const _errMsg = err instanceof Error ? err.message : "Check your fal.ai API Key in Settings.";
         teardownStream();
-        toast({ title: "Stream Failed", description: err instanceof Error ? err.message : "Check your fal.ai API Key in Settings.", variant: "destructive" });
+        setStreamError(_errMsg);
+        toast({ title: "Stream Failed", description: _errMsg, variant: "destructive" });
       } finally {
         isStartingRef.current = false; setIsStarting(false);
       }
@@ -444,7 +470,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
     const handleStopStream = useCallback(() => teardownStream(), [teardownStream]);
 
-    // ─── Reference image ───────────────────────────────────────────────────────
+    // âââ Reference image âââââââââââââââââââââââââââââââââââââââââââââââââââââââ
     const handleRefImage = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0]; if (!file) return;
       const r = new FileReader();
@@ -462,7 +488,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       r.readAsDataURL(file); e.target.value = "";
     }, []);
 
-    // ─── Regular popout (controls visible on hover) ────────────────────────────
+    // âââ Regular popout (controls visible on hover) ââââââââââââââââââââââââââââ
     const openPopout = useCallback(() => {
       if (popoutRef.current && !popoutRef.current.closed) { popoutRef.current.focus(); return; }
       const base = getBaseUrl();
@@ -476,7 +502,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       }, 1000);
     }, []);
 
-    // ─── OBS clean output window ───────────────────────────────────────────────
+    // âââ OBS clean output window âââââââââââââââââââââââââââââââââââââââââââââââ
     const openObsWindow = useCallback(() => {
       if (obsWindowRef.current && !obsWindowRef.current.closed) { obsWindowRef.current.focus(); return; }
       const base = getBaseUrl();
@@ -509,7 +535,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       closeObsWindow();
     }, [closePopout, closeObsWindow]);
 
-    // ─── Message listener (from popout windows) ────────────────────────────────
+    // âââ Message listener (from popout windows) ââââââââââââââââââââââââââââââââ
     useEffect(() => {
       const h = (e: MessageEvent) => {
         if (e.data === "stream-studio-stop") teardownStream();
@@ -522,7 +548,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       return () => window.removeEventListener("message", h);
     }, [teardownStream, cameraReady, handleStartStream]);
 
-    // ─── Keyboard shortcuts ────────────────────────────────────────────────────
+    // âââ Keyboard shortcuts ââââââââââââââââââââââââââââââââââââââââââââââââââââ
     useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
         if (e.key === "Escape") {
@@ -550,7 +576,14 @@ import { useState, useRef, useEffect, useCallback } from "react";
   
 return (
     <AppLayout>
-      {/* ââ Missing credentials banner âââââââââââââââââââââââââââââââââââ */}
+      {streamError && (
+        <div style={{ background: "#c0392b", color: "#fff", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12, fontSize: 13, fontFamily: "monospace" }}>
+          <span>⚠</span>
+          <span style={{ flex: 1 }}>{streamError}</span>
+          <button onClick={() => setStreamError(null)} style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 16 }}>✕</button>
+        </div>
+      )}
+      {/* Ã¢ÂÂÃ¢ÂÂ Missing credentials banner Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
       {credsMissing && (
         <div style={{ margin: "16px 32px 0", padding: "12px 18px", borderRadius: 10, background: "hsl(40 100% 52% / 0.1)", border: "1px solid hsl(40 100% 52% / 0.35)", display: "flex", alignItems: "center", gap: 12 }}>
           <Settings style={{ width: 16, height: 16, color: "hsl(40 100% 62%)", flexShrink: 0 }} />
@@ -563,7 +596,7 @@ return (
         </div>
       )}
 
-      {/* ââ Starting overlay âââââââââââââââââââââââââââââââââââââââââââââ */}
+      {/* Ã¢ÂÂÃ¢ÂÂ Starting overlay Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
       {isStarting && (
         <div style={{ position: "fixed", inset: 0, zIndex: 55, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ position: "absolute", inset: 0, backdropFilter: "blur(8px)", background: "hsl(222 47% 4% / 0.88)" }} />
@@ -572,9 +605,9 @@ return (
               <Loader2 style={{ width: 32, height: 32, color: C, animation: "spin 1s linear infinite" }} />
             </div>
             <div>
-              <h3 style={{ fontFamily: "'Orbitron',monospace", fontWeight: 700, fontSize: 16, letterSpacing: "0.06em", color: "hsl(190 80% 96%)", marginBottom: 8 }}>Starting Streamâ¦</h3>
+              <h3 style={{ fontFamily: "'Orbitron',monospace", fontWeight: 700, fontSize: 16, letterSpacing: "0.06em", color: "hsl(190 80% 96%)", marginBottom: 8 }}>Starting StreamÃ¢ÂÂ¦</h3>
               <p style={{ fontSize: 13, color: "hsl(222 25% 55%)", fontFamily: "'Rajdhani',sans-serif" }}>
-                {connectionStep === "engine" ? "2/2 Â· Connecting to AI engine + auto-syncing audioâ¦" : "1/2 Â· Validating credentialsâ¦"}
+                {connectionStep === "engine" ? "2/2 ÃÂ· Connecting to AI engine + auto-syncing audioÃ¢ÂÂ¦" : "1/2 ÃÂ· Validating credentialsÃ¢ÂÂ¦"}
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, width: "100%", padding: "0 8px" }}>
@@ -591,9 +624,9 @@ return (
         </div>
       )}
 
-      {/* ââ In-app fullscreen overlay (F key or Maximize button) ââââââââââ
+      {/* Ã¢ÂÂÃ¢ÂÂ In-app fullscreen overlay (F key or Maximize button) Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ
           Shows only the AI output video, no UI chrome.
-          Close button stops the stream and exits fullscreen.           ââ */}
+          Close button stops the stream and exits fullscreen.           Ã¢ÂÂÃ¢ÂÂ */}
       {isFullscreen && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 9000,
@@ -608,7 +641,7 @@ return (
             }}
             style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)", display: "block" }}
           />
-          {/* Close button â stops the stream */}
+          {/* Close button Ã¢ÂÂ stops the stream */}
           <button
             onClick={() => { teardownStream(); setIsFullscreen(false); }}
             title="Stop stream & exit fullscreen (Esc)"
@@ -648,7 +681,7 @@ return (
           {isStreaming && connectionStatus === "connected" && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 10, background: "hsl(0 85% 55% / 0.1)", border: "1px solid hsl(0 85% 55% / 0.2)" }}>
               <span style={{ width: 8, height: 8, borderRadius: "50%", background: "hsl(0 85% 65%)", animation: "pulse 2s ease-in-out infinite" }} />
-              <span style={{ fontSize: 11, color: "hsl(0 85% 70%)", fontFamily: "'Rajdhani',sans-serif", fontWeight: 700 }}>LIVE Â· {formatTime(elapsedSecs)}</span>
+              <span style={{ fontSize: 11, color: "hsl(0 85% 70%)", fontFamily: "'Rajdhani',sans-serif", fontWeight: 700 }}>LIVE ÃÂ· {formatTime(elapsedSecs)}</span>
             </div>
           )}
         </div>
@@ -656,7 +689,7 @@ return (
         {/* Main grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 316px", gap: 20 }}>
 
-          {/* ââ Left column ââââââââââââââââââââââââââââââââââââââââââââââââ */}
+          {/* Ã¢ÂÂÃ¢ÂÂ Left column Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
             {/* AI Output video panel */}
@@ -683,7 +716,7 @@ return (
 
               {/* Top-right action buttons */}
               <div style={{ position: "absolute", top: 10, right: 10, zIndex: 20, display: "flex", gap: 6 }}>
-                {/* OBS â opens a completely clean window for window-capture in OBS */}
+                {/* OBS Ã¢ÂÂ opens a completely clean window for window-capture in OBS */}
                 <div style={{ position: "relative" }}>
                   <button
                     onClick={isObsModeActive ? closeObsWindow : openObsWindow}
@@ -704,11 +737,11 @@ return (
                   {obsInstructions && (
                     <div style={{ position: "absolute", top: 36, right: 0, width: 240, background: "hsl(222 44% 7%)", border: "1px solid rgba(0,210,211,0.3)", borderRadius: 12, padding: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.6)", zIndex: 30 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: C, fontFamily: "monospace", letterSpacing: 1 }}>â OBS WINDOW OPEN</span>
-                        <button onClick={() => setObsInstructions(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 16 }}>Ã</button>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: C, fontFamily: "monospace", letterSpacing: 1 }}>Ã¢ÂÂ OBS WINDOW OPEN</span>
+                        <button onClick={() => setObsInstructions(false)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.4)", cursor: "pointer", fontSize: 16 }}>ÃÂ</button>
                       </div>
                       <p style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
-                        Clean output window is open â no controls or UI. In OBS â Sources â + â Window Capture â select "Stream Studio OBS".
+                        Clean output window is open Ã¢ÂÂ no controls or UI. In OBS Ã¢ÂÂ Sources Ã¢ÂÂ + Ã¢ÂÂ Window Capture Ã¢ÂÂ select "Stream Studio OBS".
                       </p>
                     </div>
                   )}
@@ -754,7 +787,7 @@ return (
                   </div>
                 )}
                 <div style={{ position: "absolute", bottom: 3, left: 4, right: 4, background: "rgba(0,0,0,0.7)", borderRadius: 4, fontSize: 8, color: "rgba(255,255,255,0.6)", fontFamily: "monospace", padding: "1px 4px", letterSpacing: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  INPUT{cameras.length && selectedCameraId ? ` Â· ${cameras.find(c => c.deviceId === selectedCameraId)?.label || "Camera"}` : ""}
+                  INPUT{cameras.length && selectedCameraId ? ` ÃÂ· ${cameras.find(c => c.deviceId === selectedCameraId)?.label || "Camera"}` : ""}
                 </div>
               </div>
             </div>
@@ -795,7 +828,7 @@ return (
             ) : (
               <button onClick={handleStartStream} disabled={isStarting || !cameraReady} style={{ width: "100%", height: 54, background: (!isStarting && cameraReady && !credsMissing) ? "linear-gradient(135deg, hsl(187 100% 52%) 0%, hsl(200 100% 45%) 100%)" : "hsl(222 40% 11%)", border: "none", borderRadius: 12, cursor: (!isStarting && cameraReady && !credsMissing) ? "pointer" : "not-allowed", color: (!isStarting && cameraReady && !credsMissing) ? "hsl(222 47% 4%)" : "hsl(222 25% 40%)", fontFamily: "'Orbitron',monospace", fontWeight: 700, fontSize: 14, letterSpacing: "0.08em", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxShadow: (!isStarting && cameraReady && !credsMissing) ? "0 0 28px hsl(187 100% 52% / 0.3)" : "none", transition: "all 0.2s" }}
                 onMouseEnter={e => { if (!isStarting && cameraReady && !credsMissing) (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)"; }} onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "none"; }}>
-                {isStarting ? <><Loader2 style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} /> Startingâ¦</>
+                {isStarting ? <><Loader2 style={{ width: 18, height: 18, animation: "spin 1s linear infinite" }} /> StartingÃ¢ÂÂ¦</>
                   : credsMissing ? <><Settings style={{ width: 18, height: 18 }} /> Open Settings to Set Keys</>
                   : !cameraReady ? <><Camera style={{ width: 18, height: 18 }} /> Enable Camera First</>
                   : <><Play style={{ width: 18, height: 18 }} /> Stream Now</>}
@@ -810,10 +843,10 @@ return (
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
-                  ["1", "Start your stream here first â audio sync is automatic"],
+                  ["1", "Start your stream here first Ã¢ÂÂ audio sync is automatic"],
                   ["2", "Click the OBS button above the video to open a clean output window"],
-                  ["3", "In OBS: Sources â + â Window Capture â select the OBS output window"],
-                  ["4", "No separate mic needed â audio is pre-synced automatically"],
+                  ["3", "In OBS: Sources Ã¢ÂÂ + Ã¢ÂÂ Window Capture Ã¢ÂÂ select the OBS output window"],
+                  ["4", "No separate mic needed Ã¢ÂÂ audio is pre-synced automatically"],
                 ].map(([n, text]) => (
                   <div key={n} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
                     <span style={{ width: 18, height: 18, borderRadius: "50%", flexShrink: 0, background: "hsl(187 100% 52% / 0.15)", color: C, fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{n}</span>
@@ -824,7 +857,7 @@ return (
             </div>
           </div>
 
-          {/* ââ Right sidebar ââââââââââââââââââââââââââââââââââââââââââââââââ */}
+          {/* Ã¢ÂÂÃ¢ÂÂ Right sidebar Ã¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂÃ¢ÂÂ */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
             {/* Style presets */}
@@ -844,7 +877,7 @@ return (
               <p style={{ fontSize: 10, fontWeight: 700, color: C, textTransform: "uppercase", letterSpacing: "0.12em", fontFamily: "'Orbitron',monospace", marginBottom: 8 }}>Custom Prompt</p>
               <textarea value={customPrompt} onChange={e => setCustomPrompt(e.target.value)} placeholder={style.prompt} rows={3} style={{ width: "100%", padding: 10, borderRadius: 8, resize: "vertical", background: "hsl(222 47% 4%)", border: "1px solid hsl(222 40% 14%)", color: "hsl(190 80% 96%)", fontSize: 12, fontFamily: "'Rajdhani',sans-serif", lineHeight: 1.5, outline: "none" }}
                 onFocus={e => { e.target.style.borderColor = "hsl(187 100% 52% / 0.5)"; }} onBlur={e => { e.target.style.borderColor = "hsl(222 40% 14%)"; }} />
-              {customPrompt && <button onClick={() => setCustomPrompt("")} style={{ marginTop: 6, fontSize: 11, color: "hsl(222 25% 50%)", background: "none", border: "none", cursor: "pointer", fontFamily: "'Rajdhani',sans-serif" }}>âº Reset to preset</button>}
+              {customPrompt && <button onClick={() => setCustomPrompt("")} style={{ marginTop: 6, fontSize: 11, color: "hsl(222 25% 50%)", background: "none", border: "none", cursor: "pointer", fontFamily: "'Rajdhani',sans-serif" }}>Ã¢ÂÂº Reset to preset</button>}
             </div>
 
             {/* Auto Audio Sync */}
