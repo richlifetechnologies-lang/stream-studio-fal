@@ -300,7 +300,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
             body: JSON.stringify({ prompt: "__preflight__" }),
             signal: AbortSignal.timeout(8000),
           });
-          if (_pf.status === 401 || _pf.status === 403) {
+          if (_pf.status === 401) {
             const _pfBody = await _pf.json().catch(() => ({}) as Record<string,unknown>) as Record<string,unknown>;
             const _pfDetail = String(_pfBody.detail ?? _pfBody.error ?? "");
             if (_pfDetail.toLowerCase().includes("balance") || _pfDetail.toLowerCase().includes("exhausted") || _pfDetail.toLowerCase().includes("locked")) {
