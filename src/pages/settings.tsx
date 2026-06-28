@@ -18,7 +18,7 @@ import { useState } from "react";
 
     const currentApiKey = getApiKey() ?? "";
     const maskedApi = currentApiKey
-      ? currentApiKey.slice(0, 6) + "••••••••" + currentApiKey.slice(-4)
+      ? currentApiKey.slice(0, 6) + "â¢â¢â¢â¢â¢â¢â¢â¢" + currentApiKey.slice(-4)
       : "Not set";
 
     const handleUpdate = () => {
