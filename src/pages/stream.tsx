@@ -372,7 +372,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
                 pc.onconnectionstatechange = () => {
                   if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
                     teardownStream();
-                    setStreamError("Connection lost. Your stream disconnected — please try again.");
+                    notifyError("Connection lost. Your stream disconnected — please try again.");
                   }
                 };
 
@@ -441,7 +441,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 
               case "error":
                 teardownStream();
-                setStreamError(String(result.error ?? "A server error occurred. Please try again."));
+                notifyError(String(result.error ?? "A server error occurred. Please try again."));
                 break;
 
               default:
@@ -451,7 +451,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
           onError: (err: unknown) => {
             const msg = err instanceof Error ? err.message : "Connection error. Check your API key in Settings.";
             teardownStream();
-            setStreamError(msg);
+            notifyError(msg);
           },
         });
 
@@ -465,7 +465,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
       } catch (err) {
         const _errMsg = err instanceof Error ? err.message : "Check your API Key in Settings.";
         teardownStream();
-        setStreamError(_errMsg);
+        notifyError(_errMsg);
       } finally {
         isStartingRef.current = false; setIsStarting(false);
       }
@@ -552,13 +552,13 @@ import { useState, useRef, useEffect, useCallback } from "react";
     }, [teardownStream, cameraReady, handleStartStream]);
 
 
-    // Forward stream errors to the popout window so it shows them too
-    useEffect(() => {
-      if (!streamError) return;
+    // Send error to popout window synchronously so it never misses the message
+    const notifyError = (msg: string) => {
+      setStreamError(msg);
       if (popoutRef.current && !popoutRef.current.closed) {
-        try { popoutRef.current.postMessage({ type: "stream-studio-error", message: streamError }, "*"); } catch { /* ignore */ }
+        try { popoutRef.current.postMessage({ type: "stream-studio-error", message: msg }, "*"); } catch { /* ignore */ }
       }
-    }, [streamError]);
+    };
     // âââ Keyboard shortcuts ââââââââââââââââââââââââââââââââââââââââââââââââââââ
     useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
