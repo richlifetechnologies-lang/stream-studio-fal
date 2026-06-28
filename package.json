@@ -1,7 +1,7 @@
 {
   "name": "stream-studio-fal",
   "version": "1.0.0",
-  "description": "Stream Studio powered by fal.ai × Decart Lucy 2.1 — no watermark",
+  "description": "Stream Studio powered by fal.ai Ã Decart Lucy 2.1 â no watermark",
   "main": "dist-electron/main.js",
   "author": "Rich Life Technologies",
   "private": true,
@@ -51,8 +51,8 @@
   },
   "build": {
     "appId": "com.richlife.streamstudiofal",
-    "productName": "Stream Studio",
-    "copyright": "Copyright © 2025 Rich Life Technologies",
+    "productName": "Stream Studio FAL",
+    "copyright": "Copyright Â© 2025 Rich Life Technologies",
     "directories": {
       "output": "release",
       "buildResources": "public"
@@ -84,7 +84,7 @@
       "uninstallerSidebar": "public/installer-sidebar.bmp",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Stream Studio",
+      "shortcutName": "Stream Studio FAL",
       "displayLanguageSelector": false
     },
     "mac": {
