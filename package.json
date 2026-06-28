@@ -1,6 +1,6 @@
 {
   "name": "stream-studio-fal",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Stream Studio powered by fal.ai ÃÂÃÂ Decart Lucy 2.1 ÃÂ¢ÃÂÃÂ no watermark",
   "main": "dist-electron/main.js",
   "author": "Rich Life Technologies",

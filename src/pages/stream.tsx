@@ -301,12 +301,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
             signal: AbortSignal.timeout(8000),
           });
           if (_pf.status === 401) {
-            const _pfBody = await _pf.json().catch(() => ({}) as Record<string,unknown>) as Record<string,unknown>;
-            const _pfDetail = String(_pfBody.detail ?? _pfBody.error ?? "");
-            if (_pfDetail.toLowerCase().includes("balance") || _pfDetail.toLowerCase().includes("exhausted") || _pfDetail.toLowerCase().includes("locked")) {
-              throw new Error("Your fal.ai account has no credits — top up at fal.ai/dashboard/billing, then try again.");
-            }
             throw new Error("Invalid fal.ai API key. Open Settings and paste your key from fal.ai/dashboard/keys.");
+          }
+          if (_pf.status === 403 || _pf.status === 402) {
+            const _pfBody = await _pf.json().catch(() => ({}) as Record<string,unknown>) as Record<string,unknown>;
+            const _pfDetail = String(_pfBody.detail ?? _pfBody.error ?? _pfBody.message ?? "");
+            if (_pfDetail.toLowerCase().includes("balance") || _pfDetail.toLowerCase().includes("exhausted") || _pfDetail.toLowerCase().includes("locked") || _pfDetail.toLowerCase().includes("credit") || _pfDetail.toLowerCase().includes("payment")) {
+              throw new Error("No fal.ai credits — your account balance is exhausted. Top up at fal.ai/dashboard/billing, then try again.");
+            }
+            // 403 without balance info = wrong HTTP method (WebSocket endpoint) — proceed
           }
         } catch (_pfErr) {
           if (_pfErr instanceof Error && (_pfErr.message.includes("fal.ai") || _pfErr.message.includes("credits") || _pfErr.message.includes("API key"))) throw _pfErr;
