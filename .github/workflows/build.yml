@@ -1,105 +1,104 @@
 name: Build & Release
 
-  on:
-    push:
-      branches: [main]
-      tags: ["v*"]
-    workflow_dispatch:
-      inputs:
-        release_tag:
-          description: 'Release tag to publish (e.g. v1.0.0). Leave empty to skip release.'
-          required: false
-          default: ''
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to publish (e.g. v1.0.0). Leave empty to skip release.'
+        required: false
+        default: ''
 
-  permissions:
-    contents: write
+permissions:
+  contents: write
 
-  jobs:
-    build-windows:
-      name: Build Windows (x64)
-      runs-on: windows-latest
+jobs:
+  build-windows:
+    name: Build Windows (x64)
+    runs-on: windows-latest
 
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-          with:
-            ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.ref }}
 
-        - name: Setup Node.js
-          uses: actions/setup-node@v4
-          with:
-            node-version: "20"
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-        - name: Install dependencies
-          run: npm install
+      - name: Install dependencies
+        run: npm install
 
-        - name: Build web + electron
-          run: npm run build
+      - name: Build web + electron
+        run: npm run build
 
-        - name: Package Windows installer
-          run: npx electron-builder --win --x64 --publish never
+      - name: Package Windows installer
+        run: npx electron-builder --win --x64 --publish never
 
-        - name: Generate latest.yml
-          shell: pwsh
-          run: |
-            $exePath = (Get-Item 'release\StreamStudio-Setup-*.exe').FullName
-            $exeName = [System.IO.Path]::GetFileName($exePath)
-            $bytes   = [System.IO.File]::ReadAllBytes($exePath)
-            $hash    = [System.Security.Cryptography.SHA512]::Create().ComputeHash($bytes)
-            $sha512  = [Convert]::ToBase64String($hash)
-            $size    = (Get-Item $exePath).Length
-            $refName = '${{ inputs.release_tag || github.ref_name }}'
-            $ver     = $refName.TrimStart('v')
-            $date    = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')
-            $lines = @(
-              "version: $ver",
-              "files:",
-              "  - url: $exeName",
-              "    sha512: $sha512",
-              "    size: $size",
-              "path: $exeName",
-              "sha512: $sha512",
-              "releaseDate: '$date'"
-            )
-            $lines -join "`n" | Set-Content -Path 'release\latest.yml' -Encoding UTF8
-            Get-Content 'release\latest.yml'
+      - name: Generate latest.yml
+        shell: pwsh
+        run: |
+          $exePath = (Get-Item 'release\StreamStudio-Setup-*.exe').FullName
+          $exeName = [System.IO.Path]::GetFileName($exePath)
+          $bytes   = [System.IO.File]::ReadAllBytes($exePath)
+          $hash    = [System.Security.Cryptography.SHA512]::Create().ComputeHash($bytes)
+          $sha512  = [Convert]::ToBase64String($hash)
+          $size    = (Get-Item $exePath).Length
+          $refName = '${{ inputs.release_tag || github.ref_name }}'
+          $ver     = $refName.TrimStart('v')
+          $date    = (Get-Date -Format 'yyyy-MM-ddTHH:mm:ss.fffZ')
+          $lines = @(
+            "version: $ver",
+            "files:",
+            "  - url: $exeName",
+            "    sha512: $sha512",
+            "    size: $size",
+            "path: $exeName",
+            "sha512: $sha512",
+            "releaseDate: '$date'"
+          )
+          $lines -join "`n" | Set-Content -Path 'release\latest.yml' -Encoding UTF8
+          Get-Content 'release\latest.yml'
 
-        - name: Upload artifact (non-release)
-          if: "!startsWith(github.ref, 'refs/tags/') && inputs.release_tag == ''"
-          uses: actions/upload-artifact@v4
-          with:
-            name: stream-studio-fal-windows-${{ github.run_number }}
-            path: |
-              release/*.exe
-              release/latest.yml
-            retention-days: 30
+      - name: Upload artifact (non-release)
+        if: "!startsWith(github.ref, 'refs/tags/') && inputs.release_tag == ''"
+        uses: actions/upload-artifact@v4
+        with:
+          name: stream-studio-fal-windows-${{ github.run_number }}
+          path: |
+            release/*.exe
+            release/latest.yml
+          retention-days: 30
 
-        - name: Publish to GitHub Release
-          if: "startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''"
-          uses: softprops/action-gh-release@v2
-          with:
-            tag_name: ${{ inputs.release_tag || github.ref_name }}
-            name: Stream Studio FAL ${{ inputs.release_tag || github.ref_name }}
-            body: |
-              ## Stream Studio (fal.ai) ${{ inputs.release_tag || github.ref_name }}
+      - name: Publish to GitHub Release
+        if: "startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          name: Stream Studio FAL ${{ inputs.release_tag || github.ref_name }}
+          body: |
+            ## Stream Studio (fal.ai) ${{ inputs.release_tag || github.ref_name }}
 
-              Real-time AI webcam transformation powered by **fal.ai × Decart Lucy 2.1** — no watermark.
+            Real-time AI webcam transformation powered by fal.ai x Decart Lucy 2.1 — no watermark.
 
-              ### Downloads
-              | Platform | File |
-              |----------|------|
-              | Windows (x64) | StreamStudio-Setup-*.exe |
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | Windows (x64) | StreamStudio-Setup-*.exe |
 
-              ### Setup
-              1. Create a free account at https://fal.ai
-              2. Get your API key from https://fal.ai/dashboard/keys
-              3. Open Stream Studio → Settings → paste your fal.ai API key
-              4. Enable camera and click Stream Now
-            files: |
-              release/*.exe
-              release/latest.yml
-            token: ${{ secrets.GITHUB_TOKEN }}
-            draft: false
-            prerelease: false
-            fail_on_unmatched_files: false
-  
+            ### Setup
+            1. Create a free account at https://fal.ai
+            2. Get your API key from https://fal.ai/dashboard/keys
+            3. Open Stream Studio - Settings - paste your fal.ai API key
+            4. Enable camera and click Stream Now
+          files: |
+            release/*.exe
+            release/latest.yml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: false
